@@ -1,0 +1,24 @@
+server {
+    listen ${WEB_HTTP_PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Static SPA assets.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API + health to the FastAPI service (same-origin for the browser).
+    location /api/ {
+        proxy_pass http://${API_UPSTREAM};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location = /health {
+        proxy_pass http://${API_UPSTREAM}/health;
+    }
+}

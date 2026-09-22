@@ -1,0 +1,60 @@
+{
+  "scenarios": [
+    {
+      "key": "nested",
+      "title": "嵌套环（两层收缩）",
+      "description": "a<->b 构成内环，收缩后与 d 形成外环；根 R 经 c 进入，需要两次收缩与两次展开。",
+      "points": ["R", "a", "b", "c", "d"],
+      "root": "R",
+      "channels": [
+        {"id": "c1", "source": "b", "target": "a", "cost": 1},
+        {"id": "c2", "source": "a", "target": "b", "cost": 1},
+        {"id": "c3", "source": "d", "target": "a", "cost": 2},
+        {"id": "c4", "source": "b", "target": "d", "cost": 2},
+        {"id": "c5", "source": "R", "target": "c", "cost": 1},
+        {"id": "c6", "source": "c", "target": "d", "cost": 3}
+      ],
+      "expect": {"status": 200, "total_cost": 7, "channel_ids": ["c2", "c3", "c5", "c6"], "contractions": 2, "expansions": 2}
+    },
+    {
+      "key": "parallel",
+      "title": "平行通道",
+      "description": "A->B 三条平行通道，p2 与 p3 同价 2，字典序取 p2。",
+      "points": ["A", "B"],
+      "root": "A",
+      "channels": [
+        {"id": "p1", "source": "A", "target": "B", "cost": 5},
+        {"id": "p2", "source": "A", "target": "B", "cost": 2},
+        {"id": "p3", "source": "A", "target": "B", "cost": 2}
+      ],
+      "expect": {"status": 200, "total_cost": 2, "channel_ids": ["p2"], "contractions": 0, "expansions": 0}
+    },
+    {
+      "key": "tie",
+      "title": "同优规范树（字典序破同价）",
+      "description": "三棵总价 2 的树：(t1,t6)、(t2,t3)、(t2,t6)。(t1,t6) 虽 id 之和最大，却字典序最小，必须入选。",
+      "points": ["A", "B", "C"],
+      "root": "A",
+      "channels": [
+        {"id": "t1", "source": "C", "target": "B", "cost": 1},
+        {"id": "t2", "source": "A", "target": "B", "cost": 1},
+        {"id": "t3", "source": "B", "target": "C", "cost": 1},
+        {"id": "t4", "source": "A", "target": "B", "cost": 9},
+        {"id": "t5", "source": "A", "target": "C", "cost": 9},
+        {"id": "t6", "source": "A", "target": "C", "cost": 1}
+      ],
+      "expect": {"status": 200, "total_cost": 2, "channel_ids": ["t1", "t6"], "contractions": 1, "expansions": 1}
+    },
+    {
+      "key": "unreachable",
+      "title": "不可达点（无解）",
+      "description": "唯一通道 y->x 与根 R 完全分离，x、y 均不可达，返回 422 与不可达点列表；页面保留输入。",
+      "points": ["R", "x", "y"],
+      "root": "R",
+      "channels": [
+        {"id": "u1", "source": "y", "target": "x", "cost": 1}
+      ],
+      "expect": {"status": 422, "unreachable": ["x", "y"]}
+    }
+  ]
+}

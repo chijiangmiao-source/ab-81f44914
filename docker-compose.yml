@@ -1,0 +1,66 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: glacier-arborescence-api:latest
+    environment:
+      # "*" is fine for the single-page demo; tighten for real deployments.
+      CORS_ORIGINS: "*"
+      # Container-internal listen port (defaults to 8000).
+      APP_PORT: "${API_INTERNAL_PORT:-8000}"
+    ports:
+      # host port and container port are both configurable
+      - "${API_PORT:-8000}:${API_INTERNAL_PORT:-8000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import json,os,urllib.request; p=os.environ.get('APP_PORT','8000'); r=urllib.request.urlopen(f'http://127.0.0.1:{p}/health', timeout=3); assert json.load(r)['status']=='ok'\""]
+      interval: 10s
+      timeout: 4s
+      retries: 6
+      start_period: 4s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    image: glacier-arborescence-web:latest
+    environment:
+      # Container-internal listen port and API upstream (both configurable).
+      WEB_HTTP_PORT: "${WEB_INTERNAL_PORT:-8080}"
+      API_UPSTREAM: "api:${API_INTERNAL_PORT:-8000}"
+    ports:
+      - "${WEB_PORT:-8080}:${WEB_INTERNAL_PORT:-8080}"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${WEB_HTTP_PORT:-8080}/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 4s
+      retries: 6
+      start_period: 4s
+    restart: unless-stopped
+
+  # One-shot verification: builds nothing on its own at runtime (the image
+  # already contains both toolchains), runs unit tests + both builds +
+  # API/HTTP smoke + scenario cross-checks against the REAL api/web
+  # containers, then exits. Its exit code reports the overall verdict.
+  #
+  #   docker compose build
+  #   docker compose up --abort-on-container-exit --exit-code-from verify verify
+  verify:
+    build:
+      context: .
+      dockerfile: verify/Dockerfile
+    image: glacier-arborescence-verify:latest
+    environment:
+      API_URL: "http://api:${API_INTERNAL_PORT:-8000}"
+      WEB_URL: "http://web:${WEB_INTERNAL_PORT:-8080}"
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    restart: "no"
+    profiles: ["verify"]

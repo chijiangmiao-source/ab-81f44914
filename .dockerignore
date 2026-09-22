@@ -1,0 +1,9 @@
+# Root build context is shared by web/ and verify/ images.
+# Keep tests/ (the verify image runs them).
+**/node_modules/
+**/dist/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+.git/
+*.log
